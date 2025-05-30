@@ -35,7 +35,7 @@ jobs:
           echo "force_build_so=$force_build_so" >> $GITHUB_OUTPUT
   update_h:
     needs: pre_check
-    if: ${{ needs.pre_check.outputs.should_skip != 'true' && steps.set_force_build_so.outputs.set_force_build_so == 'false'}}
+    if: ${{ needs.pre_check.outputs.should_skip != 'true' && needs.pre_check.outputs.set_force_build_so == 'false'}}
     outputs:
       any_translate_changed: ${{ steps.check_changes.outputs.any_translate_changed }}
     runs-on: ubuntu-latest
@@ -106,7 +106,7 @@ jobs:
 
   build_so:
     needs: update_h
-    if: ${{ needs.update_h.outputs.any_translate_changed == 'true' || steps.set_force_build_so.outputs.set_force_build_so == 'true' }}
+    if: ${{ needs.update_h.outputs.any_translate_changed == 'true' || needs.pre_check.outputs.set_force_build_so  == 'true' }}
     runs-on: ubuntu-latest
     strategy:
       matrix:
