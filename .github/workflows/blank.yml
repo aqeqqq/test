@@ -1,0 +1,259 @@
+name: Dev
+on:
+  push:
+  workflow_dispatch:
+#   schedule:
+
+#    - cron: '*/60 * * * *'
+jobs:
+  pre_check:
+    runs-on: ubuntu-latest
+    # Map a step output to a job output
+    outputs:
+      should_skip: ${{ steps.skip_check.outputs.should_skip }}
+    steps:
+      - id: skip_check
+        uses: fkirc/skip-duplicate-actions@master
+        with:
+          concurrent_skipping: "always"
+          skip_after_successful_duplicate: "false"
+          do_not_skip: "[]"
+  update_h:
+    needs: pre_check
+    if: ${{ needs.pre_check.outputs.should_skip != 'true' }}
+    outputs:
+      any_translate_changed: ${{ steps.check_changes.outputs.any_translate_changed }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: szenius/set-timezone@v2.0
+        with:
+          timezoneLinux: "Asia/Singapore"
+          timezoneMacos: "Asia/Singapore"
+          timezoneWindows: "Singapore Standard Time"
+      - name: checkout main
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ secrets.MAIN }}
+          ref: 'EN'
+          ssh-key: ${{ secrets.SSH_KEY }}
+          path: Main
+          sparse-checkout: |
+            Output
+            python
+
+      - name: checkout AzurLaneLuaScripts
+        uses: actions/checkout@v4
+        with:
+          repository: AzurLaneTools/AzurLaneLuaScripts
+          path: AzurLaneLuaScripts
+          ref: main
+          sparse-checkout: |
+            CN/gamecfg/story/
+            CN/sharecfg/
+            CN/sharecfg/ship_skin_template_sublist/
+            CN/sharecfg/enemy_data_statistics_sublist/
+            CN/sharecfgdata/
+            EN/gamecfg/story/
+            EN/sharecfg/
+            EN/sharecfgdata/
+
+      - name: Setup Python
+        uses: actions/setup-python@v5.6.0
+        with:
+          python-version: '3.10'
+          # cache: 'pip'
+      - name: Install Python dependencies
+        run: |
+          rm -f ../Output/*
+          pip install lupa
+          python3 tranlator.py
+          python3 story.py
+          python3 namecode.py
+        working-directory: Main/python
+      - name: Commit files
+        id: check_changes
+        working-directory: Main
+        run: |
+          git config  user.email "github-actions[bot]@users.noreply.github.com"
+          git config  user.name "github-actions[bot]"
+          if [[ `git status --porcelain Output` ]]; then
+            git add Output
+            git commit -m "Changes *.h"
+            git push
+            echo "any_translate_changed=true" >> $GITHUB_OUTPUT
+          else
+            echo "No changes to commit"
+            echo "any_translate_changed=false" >> $GITHUB_OUTPUT
+          fi
+          echo "sleep..."
+          sleep 10
+
+
+  build_so:
+    needs: update_h
+    if: ${{ needs.update_h.outputs.any_translate_changed == 'true' }}
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        triplet: [arm64-v8a,armeabi-v7a]
+    env:
+      VCPKG_BINARY_SOURCES: clear;files,${{ github.workspace }}/AzurLane/build/${{ matrix.triplet }}/vcpkg_installed,readwrite
+    steps:
+
+      - name: checkout main
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ secrets.MAIN }}
+          ref: 'EN'
+          submodules: recursive
+          path: Main
+          ssh-key: ${{ secrets.SSH_KEY }}
+      - name: checkout Zygisk
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ secrets.ZYGISK }}
+          ref: Ocean
+          path: AzurLane
+          ssh-key: ${{ secrets.SSH_KEY }}
+      - name: ccache
+        uses: hendrikmuhs/ccache-action@main
+        with:
+          key: ${{ github.job }}-${{ matrix.triplet }}
+
+      - name: Move files
+        # if: steps.check_changes_1.outputs.has_changes == 'true'
+        run: |
+          cp -r Main/Output/*.cpp AzurLane/app/src/main/cpp/azur/src
+          cp -r Main/Output/*.h   AzurLane/app/src/main/cpp/azur/src
+          export MODULE_NAME="OceanEN"
+          echo "MODULE_NAME=OceanEN" >> $GITHUB_ENV
+
+      - uses: actions/setup-java@v4.7.1
+        with:
+          distribution: temurin
+          java-version: 17
+          cache: gradle
+      - uses: lukka/get-cmake@latest
+
+      - name: Restore vcpkg cache
+        uses: actions/cache/restore@v4.2.3
+        with:
+          path: ${{ github.workspace }}/AzurLane/build/${{ matrix.triplet }}/vcpkg_installed
+          key: vcpkg-${{ matrix.triplet }}-${{ hashFiles('AzurLane/app/src/main/cpp/vcpkg.json') }}
+          restore-keys: vcpkg-${{ matrix.triplet }}-
+
+      - uses: lukka/run-vcpkg@v11
+        id: runvcpkg
+        with:
+          vcpkgJsonGlob: 'AzurLane/app/src/main/cpp/vcpkg.json'
+          doNotCache: false
+
+      - name: Prints output of run-vcpkg's action.
+        run: echo "root='${{ steps.runvcpkg.outputs.RUNVCPKG_VCPKG_ROOT_OUT }}', triplet='${{ steps.runvcpkg.outputs.RUNVCPKG_VCPKG_DEFAULT_TRIPLET_OUT }}' "
+
+
+      - name: Run CMake and run vcpkg to build packages
+        uses: lukka/run-cmake@v10
+        id: runcmake
+        with:
+          cmakeListsTxtPath: 'AzurLane/app/src/main/cpp/CMakeLists.txt'
+          configurePreset: ${{ matrix.triplet }}
+          buildPreset: ${{ matrix.triplet }}
+          configurePresetAdditionalArgs: "['-DCMAKE_C_COMPILER_LAUNCHER=ccache','-DCMAKE_CXX_COMPILER_LAUNCHER=ccache']"
+
+      - name: Save vcpkg cache
+        uses: actions/cache/save@v4.2.3
+        with:
+          path: ${{ github.workspace }}/AzurLane/build/${{ matrix.triplet }}/vcpkg_installed
+          key: vcpkg-${{ matrix.triplet }}-${{ hashFiles('AzurLane/app/src/main/cpp/vcpkg.json') }}
+
+      - name: Commit files
+        id: check_so_changed
+        working-directory: Main
+        run: |
+          rm -f lib/${{ matrix.triplet }}/*
+          cp AzurLane/build/${{ matrix.triplet }}/lib$MODULE_NAME.so  lib/${{ matrix.triplet }}
+          set -e
+
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git config user.name "github-actions[bot]"
+
+          if [[ -z $(git status --porcelain lib) ]]; then
+            echo "No changes to commit"
+            echo "::set-output name=changed_so::false"
+            exit 0
+          fi
+          ls
+          git add lib
+          git commit -m "Update ${{ matrix.triplet }} libraries "
+          git reset --hard
+          git clean -df
+          git pull --rebase origin EN
+          if git push origin EN; then
+            echo "Push successful"
+            echo "any_so_changed=true" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+
+  build_apk:
+    needs: build_so
+    runs-on: ubuntu-latest
+    steps:
+      - name: Wait after push
+        run: |
+          echo "sleep..."
+          sleep 10
+      - name: checkout lib
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ secrets.MAIN }}
+          ref: 'EN'
+          ssh-key: ${{ secrets.SSH_KEY }}
+          sparse-checkout: |
+            lib
+
+      - name: checkout Apk
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ secrets.APK }}
+          ssh-key: ${{ secrets.SSH_KEY }}
+          path: AzurLaneApk
+          ref: EN
+      - name: Build APK
+        run: |
+          cp -r ../Main/lib/. libs/
+          chmod +x patch_perseus.sh
+          ./patch_perseus.sh
+        working-directory: AzurLaneApk
+      - name: Setup Android SDK Tools
+        uses: android-actions/setup-android@v3.2.1
+        with:
+          packages: 'platform-tools platforms;android-34 build-tools;34.0.0'
+      - name: Output build-tools path and add to PATH
+        run: |
+          git status
+          ls -la ${ANDROID_SDK_ROOT}/build-tools/34.0.0
+          echo "${ANDROID_SDK_ROOT}/build-tools/34.0.0" >> $GITHUB_PATH
+      - name: Zipalign and Sign Android release
+        run: |
+          chmod +x zipalign_sign.sh
+          ./zipalign_sign.sh
+        working-directory: AzurLaneApk
+
+      - name: Get current date
+        id: date
+        run: echo "::set-output name=date::$(date +'%Y-%m-%d')"
+
+      - name: Create Release
+        uses: ncipollo/release-action@v1.12.0
+        with:
+          name: ${{ steps.date.outputs.date }}_EN
+          allowUpdates: true
+          artifactErrorsFailBuild: true
+          artifacts: AzurLaneApk/build/com.YoStarEN.AzurLane.xapk,AzurLaneApk/build/com.YoStarEN.AzurLane.patched.apk
+          draft: true
+          #           commit: "latest"
+          makeLatest: false
+          tag: "testEN"
+          omitBody: true
