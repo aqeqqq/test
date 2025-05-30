@@ -2,6 +2,11 @@ name: Dev
 on:
   push:
   workflow_dispatch:
+    inputs:
+      force_build_so:
+        description: 'Force build so without changes'
+        type: string
+        default: false
 #   schedule:
 
 #    - cron: '*/60 * * * *'
@@ -11,6 +16,7 @@ jobs:
     # Map a step output to a job output
     outputs:
       should_skip: ${{ steps.skip_check.outputs.should_skip }}
+      force_build_so: ${{ steps.set_force_build_so.outputs.set_force_build_so }}
     steps:
       - id: skip_check
         uses: fkirc/skip-duplicate-actions@master
@@ -18,9 +24,18 @@ jobs:
           concurrent_skipping: "always"
           skip_after_successful_duplicate: "false"
           do_not_skip: "[]"
+      - name: 啊啊啊
+        id: set_force_build_so
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            force_build_so="${{ github.event.inputs.force_build_so }}"
+          else
+            force_build_so="false"
+          fi
+          echo "force_build_so=$force_build_so" >> $GITHUB_OUTPUT
   update_h:
     needs: pre_check
-    if: ${{ needs.pre_check.outputs.should_skip != 'true' }}
+    if: ${{ needs.pre_check.outputs.should_skip != 'true' && steps.set_force_build_so.outputs.set_force_build_so == 'false'}}
     outputs:
       any_translate_changed: ${{ steps.check_changes.outputs.any_translate_changed }}
     runs-on: ubuntu-latest
@@ -91,7 +106,7 @@ jobs:
 
   build_so:
     needs: update_h
-    if: ${{ needs.update_h.outputs.any_translate_changed == 'true' }}
+    if: ${{ needs.update_h.outputs.any_translate_changed == 'true' || steps.set_force_build_so.outputs.set_force_build_so == 'true' }}
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -209,6 +224,7 @@ jobs:
         with:
           repository: ${{ secrets.MAIN }}
           ref: 'EN'
+          path: Main
           ssh-key: ${{ secrets.SSH_KEY }}
           sparse-checkout: |
             lib
