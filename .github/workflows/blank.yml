@@ -5,8 +5,8 @@ on:
     inputs:
       force_build_so:
         description: 'Force build so without changes'
-        type: boolean
-        default: true
+        type: string
+        default: "true"
 #   schedule:
 #    - cron: '*/60 * * * *'
 jobs:
@@ -26,10 +26,10 @@ jobs:
         run: |
           if [ "${{ github.event_name }}" != "workflow_dispatch" ]; then
             echo "skip_translate=false" >> $GITHUB_OUTPUT
-          elif ${{ github.event.inputs.force_build_so }}; then
-            echo "skip_translate=true">> $GITHUB_OUTPUT
+          # elif ${{ github.event.inputs.force_build_so }}; then
+          #   echo "skip_translate=true">> $GITHUB_OUTPUT
           else
-            echo "skip_translate=false">> $GITHUB_OUTPUT
+            echo "skip_translate="${{ github.event.inputs.force_build_so }}"">> $GITHUB_OUTPUT
           fi
 
   update_h:
