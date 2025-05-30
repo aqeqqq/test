@@ -27,7 +27,7 @@ jobs:
       - name: 啊啊啊
         id: set_force_build_so
         run: |
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+          if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
             force_build_so="${{ github.event.inputs.force_build_so }}"
           else
             echo "force_build_so=false" >> $GITHUB_OUTPUT
