@@ -172,7 +172,7 @@ jobs:
         working-directory: Main
         run: |
           rm -f lib/${{ matrix.triplet }}/*
-          cp AzurLane/build/${{ matrix.triplet }}/lib$MODULE_NAME.so  lib/${{ matrix.triplet }}
+          cp ../AzurLane/build/${{ matrix.triplet }}/lib$MODULE_NAME.so  lib/${{ matrix.triplet }}
           set -e
 
           git config user.email "github-actions[bot]@users.noreply.github.com"
