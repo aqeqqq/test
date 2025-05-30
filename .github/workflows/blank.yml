@@ -107,7 +107,7 @@ jobs:
 
   build_so:
     needs: [pre_check, skip_translate, update_h]
-    if: ${{(needs.skip_translate.outputs.force_build_so == 'true') ||(needs.update_h.outputs.any_translate_changed == 'true' && needs.update_h.result == 'success')}}
+    if: ${{(needs.skip_translate.outputs.force_build_so == true) ||(needs.update_h.outputs.any_translate_changed == 'true' && needs.update_h.result == 'success')}}
     runs-on: ubuntu-latest
     strategy:
       matrix:
