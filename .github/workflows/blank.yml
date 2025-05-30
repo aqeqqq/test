@@ -5,18 +5,13 @@ on:
     inputs:
       force_build_so:
         description: 'Force build so without changes'
-        type: string
-        default: false
-#   schedule:
-
-#    - cron: '*/60 * * * *'
+        type: boolean
+        default: true
 jobs:
   pre_check:
     runs-on: ubuntu-latest
-    # Map a step output to a job output
     outputs:
       should_skip: ${{ steps.skip_check.outputs.should_skip }}
-      force_build_so: ${{ steps.set_force_build_so.outputs.set_force_build_so }}
     steps:
       - id: skip_check
         uses: fkirc/skip-duplicate-actions@master
@@ -24,22 +19,30 @@ jobs:
           concurrent_skipping: "always"
           skip_after_successful_duplicate: "false"
           do_not_skip: "[]"
-      - name: 啊啊啊
-        id: set_force_build_so
+          
+  skip_translate:
+    needs: pre_check
+    if: ${{ needs.pre_check.outputs.should_skip != 'true' }}
+    runs-on: ubuntu-latest
+    outputs:
+      force_build_so: ${{ steps.set_force.outputs.force_build_so }}
+    steps:
+      - id: set_force
         run: |
-          if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
             force_build_so="${{ github.event.inputs.force_build_so }}"
           else
-            echo "force_build_so=false" >> $GITHUB_OUTPUT
+            force_build_so=false
           fi
-          
+          echo "force_build_so=$force_build_so" >> $GITHUB_OUTPUT
+
   update_h:
-    needs: pre_check
-    if: ${{ needs.pre_check.outputs.should_skip != 'true' && needs.pre_check.outputs.set_force_build_so == 'false'}}
+    needs: [pre_check, skip_translate]
+    if: ${{ needs.skip_translate.outputs.force_build_so == 'false' && needs.pre_check.outputs.should_skip != 'true' }}
     outputs:
       any_translate_changed: ${{ steps.check_changes.outputs.any_translate_changed }}
     runs-on: ubuntu-latest
-    steps:
+    steps:    
       - uses: szenius/set-timezone@v2.0
         with:
           timezoneLinux: "Asia/Singapore"
@@ -76,7 +79,6 @@ jobs:
         uses: actions/setup-python@v5.6.0
         with:
           python-version: '3.10'
-          # cache: 'pip'
       - name: Install Python dependencies
         run: |
           rm -f ../Output/*
@@ -103,10 +105,9 @@ jobs:
           echo "sleep..."
           sleep 10
 
-
   build_so:
-    needs: update_h
-    if: ${{ needs.update_h.outputs.any_translate_changed == 'true' || needs.pre_check.outputs.set_force_build_so  == 'true' }}
+    needs: [pre_check, skip_translate, update_h]
+    if: ${{(needs.skip_translate.outputs.force_build_so == 'true') ||(needs.update_h.outputs.any_translate_changed == 'true' && needs.update_h.result == 'success')}}
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -114,7 +115,6 @@ jobs:
     env:
       VCPKG_BINARY_SOURCES: clear;files,${{ github.workspace }}/AzurLane/build/${{ matrix.triplet }}/vcpkg_installed,readwrite
     steps:
-
       - name: checkout main
         uses: actions/checkout@v4
         with:
@@ -136,7 +136,6 @@ jobs:
           key: ${{ github.job }}-${{ matrix.triplet }}
 
       - name: Move files
-        # if: steps.check_changes_1.outputs.has_changes == 'true'
         run: |
           cp -r Main/Output/*.cpp AzurLane/app/src/main/cpp/azur/src
           cp -r Main/Output/*.h   AzurLane/app/src/main/cpp/azur/src
@@ -165,7 +164,6 @@ jobs:
 
       - name: Prints output of run-vcpkg's action.
         run: echo "root='${{ steps.runvcpkg.outputs.RUNVCPKG_VCPKG_ROOT_OUT }}', triplet='${{ steps.runvcpkg.outputs.RUNVCPKG_VCPKG_DEFAULT_TRIPLET_OUT }}' "
-
 
       - name: Run CMake and run vcpkg to build packages
         uses: lukka/run-cmake@v10
@@ -209,7 +207,6 @@ jobs:
             echo "any_so_changed=true" >> $GITHUB_OUTPUT
             exit 0
           fi
-
 
   build_apk:
     needs: build_so
@@ -269,7 +266,6 @@ jobs:
           artifactErrorsFailBuild: true
           artifacts: AzurLaneApk/build/com.YoStarEN.AzurLane.xapk,AzurLaneApk/build/com.YoStarEN.AzurLane.patched.apk
           draft: true
-          #           commit: "latest"
           makeLatest: false
           tag: "testEN"
           omitBody: true
