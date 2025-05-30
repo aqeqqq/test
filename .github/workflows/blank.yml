@@ -30,9 +30,9 @@ jobs:
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
             force_build_so="${{ github.event.inputs.force_build_so }}"
           else
-            force_build_so="false"
+            echo "force_build_so=false" >> $GITHUB_OUTPUT
           fi
-          echo "force_build_so=$force_build_so" >> $GITHUB_OUTPUT
+          
   update_h:
     needs: pre_check
     if: ${{ needs.pre_check.outputs.should_skip != 'true' && needs.pre_check.outputs.set_force_build_so == 'false'}}
