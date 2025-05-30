@@ -24,7 +24,7 @@ jobs:
           do_not_skip: "[]"
       - id : check
         run: |
-          if ${{ github.event.inputs.force_build_so }} then
+          if ${{ github.event.inputs.force_build_so }}; then
             echo "skip_translate=true">> $GITHUB_OUTPUT
           else
             echo "skip_translate=false">> $GITHUB_OUTPUT
@@ -86,7 +86,7 @@ jobs:
         id: check_changes
         working-directory: Main
         run: |
-          if ${{ needs.pre_check.outputs.skip_translate == 'true' }} then
+          if ${{ needs.pre_check.outputs.skip_translate == 'true' }} ;then
             echo "any_translate_changed=true" >> $GITHUB_OUTPUT
           else
             git config  user.email "github-actions[bot]@users.noreply.github.com"
