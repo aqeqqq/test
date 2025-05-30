@@ -24,7 +24,9 @@ jobs:
           do_not_skip: "[]"
       - id : check
         run: |
-          if ${{ github.event.inputs.force_build_so }}; then
+          if [ "${{ github.event_name }}" != "workflow_dispatch" ]; then
+            echo "skip_translate=false" >> $GITHUB_OUTPUT
+          elif ${{ github.event.inputs.force_build_so }}; then
             echo "skip_translate=true">> $GITHUB_OUTPUT
           else
             echo "skip_translate=false">> $GITHUB_OUTPUT
@@ -253,7 +255,6 @@ jobs:
           packages: 'platform-tools platforms;android-34 build-tools;34.0.0'
       - name: Output build-tools path and add to PATH
         run: |
-          git status
           ls -la ${ANDROID_SDK_ROOT}/build-tools/34.0.0
           echo "${ANDROID_SDK_ROOT}/build-tools/34.0.0" >> $GITHUB_PATH
       - name: Zipalign and Sign Android release
