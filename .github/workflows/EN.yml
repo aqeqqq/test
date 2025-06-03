@@ -1,4 +1,4 @@
-name: Dev
+name: EN
 on:
   push:
   workflow_dispatch:
