@@ -13,15 +13,15 @@ jobs:
   pre_check:
     runs-on: ubuntu-latest
     outputs:
-      should_skip: ${{ steps.skip_check.outputs.should_skip }}
+      should_skip: false
       skip_translate: ${{ steps.check.outputs.skip_translate }}
     steps:
-      - id: skip_check
-        uses: fkirc/skip-duplicate-actions@master
-        with:
-          concurrent_skipping: "always"
-          skip_after_successful_duplicate: "false"
-          do_not_skip: "[]"
+      # - id: skip_check
+      #   uses: fkirc/skip-duplicate-actions@master
+      #   with:
+      #     concurrent_skipping: "always"
+      #     skip_after_successful_duplicate: "false"
+      #     do_not_skip: "[]"
       - id : check
         run: |
           if [ "${{ github.event_name }}" != "workflow_dispatch" ]; then
@@ -168,7 +168,7 @@ jobs:
         id: runvcpkg
         with:
           vcpkgJsonGlob: 'AzurLane/app/src/main/cpp/vcpkg.json'
-          doNotCache: false
+          doNotCache: true
 
       - name: Prints output of run-vcpkg's action.
         run: echo "root='${{ steps.runvcpkg.outputs.RUNVCPKG_VCPKG_ROOT_OUT }}', triplet='${{ steps.runvcpkg.outputs.RUNVCPKG_VCPKG_DEFAULT_TRIPLET_OUT }}' "
