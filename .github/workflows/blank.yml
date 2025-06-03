@@ -167,7 +167,7 @@ jobs:
       - uses: lukka/run-vcpkg@v11
         id: runvcpkg
         with:
-          vcpkgGitCommitId: "test"
+          vcpkgGitCommitId: 67a30051
           doNotUpdateVcpkg: true
           vcpkgJsonGlob: 'AzurLane/app/src/main/cpp/vcpkg.json'
           doNotCache: false
