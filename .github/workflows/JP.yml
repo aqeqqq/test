@@ -1,6 +1,6 @@
 name: JP
 on:
-  push:
+  # push:
   workflow_dispatch:
     inputs:
       force_build_so:
