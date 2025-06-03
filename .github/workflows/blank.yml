@@ -154,21 +154,21 @@ jobs:
         with:
           distribution: temurin
           java-version: 17
-          cache: gradle
+          # cache: gradle
       - uses: lukka/get-cmake@latest
 
-      - name: Restore vcpkg cache
-        uses: actions/cache/restore@v4.2.3
-        with:
-          path: ${{ github.workspace }}/AzurLane/build/${{ matrix.triplet }}/vcpkg_installed
-          key: vcpkg-${{ matrix.triplet }}-${{ hashFiles('AzurLane/app/src/main/cpp/vcpkg.json') }}
-          restore-keys: vcpkg-${{ matrix.triplet }}-
+      # - name: Restore vcpkg cache
+      #   uses: actions/cache/restore@v4.2.3
+      #   with:
+      #     path: ${{ github.workspace }}/AzurLane/build/${{ matrix.triplet }}/vcpkg_installed
+      #     key: vcpkg-${{ matrix.triplet }}-${{ hashFiles('AzurLane/app/src/main/cpp/vcpkg.json') }}
+      #     restore-keys: vcpkg-${{ matrix.triplet }}-
 
       - uses: lukka/run-vcpkg@v11
         id: runvcpkg
         with:
           vcpkgJsonGlob: 'AzurLane/app/src/main/cpp/vcpkg.json'
-          doNotCache: true
+          doNotCache: false
 
       - name: Prints output of run-vcpkg's action.
         run: echo "root='${{ steps.runvcpkg.outputs.RUNVCPKG_VCPKG_ROOT_OUT }}', triplet='${{ steps.runvcpkg.outputs.RUNVCPKG_VCPKG_DEFAULT_TRIPLET_OUT }}' "
@@ -183,11 +183,11 @@ jobs:
           buildPreset: ${{ matrix.triplet }}
           configurePresetAdditionalArgs: "['-DCMAKE_C_COMPILER_LAUNCHER=ccache','-DCMAKE_CXX_COMPILER_LAUNCHER=ccache']"
 
-      - name: Save vcpkg cache
-        uses: actions/cache/save@v4.2.3
-        with:
-          path: ${{ github.workspace }}/AzurLane/build/${{ matrix.triplet }}/vcpkg_installed
-          key: vcpkg-${{ matrix.triplet }}-${{ hashFiles('AzurLane/app/src/main/cpp/vcpkg.json') }}
+      # - name: Save vcpkg cache
+      #   uses: actions/cache/save@v4.2.3
+      #   with:
+      #     path: ${{ github.workspace }}/AzurLane/build/${{ matrix.triplet }}/vcpkg_installed
+      #     key: vcpkg-${{ matrix.triplet }}-${{ hashFiles('AzurLane/app/src/main/cpp/vcpkg.json') }}
 
       - name: Commit files
         id: check_so_changed
