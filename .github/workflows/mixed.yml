@@ -113,6 +113,6 @@ jobs:
             await github.rest.repos.createDispatchEvent({
               owner: context.repo.owner,
               repo: context.repo.repo,
-              event_type: ${{ matrix.config }}
+              event_type: '${{ matrix.config }}'
             })
           github-token: ${{ secrets.GITHUB_TOKEN }}
