@@ -1,0 +1,9 @@
+name: JP
+on:
+  repository_dispatch:
+    types: [trigger_jp]  # 自定义事件类型
+jobs:
+  job1:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "JP 工作流被触发"
