@@ -107,7 +107,7 @@ jobs:
           fi
       - name: Trigger  Workflow
         if: ${{steps.check_changes.outputs.any_translate_changed=='true'||needs.pre_check.outputs.force_build_so=='true'}}
-        uses: actions/github-script@v6
+        uses: actions/github-script@main
         with:
           script: |
             await github.rest.repos.createDispatchEvent({
