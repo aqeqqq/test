@@ -105,13 +105,13 @@ jobs:
             echo "sleep..."
             sleep 3
           fi
-      - name: Trigger Repository Dispatch
+      - name: Trigger JP Workflow
         uses: actions/github-script@v6
         with:
           script: |
             await github.rest.repos.createDispatchEvent({
-              owner: aqeqqq,
-              repo: test,
-              event_type: 'trigger_jp',  # 与JP中定义的类型匹配
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              event_type: 'trigger_jp'  // 确保与JP工作流中定义的类型一致
             })
-  
+          github-token: ${{ secrets.GITHUB_TOKEN }}
