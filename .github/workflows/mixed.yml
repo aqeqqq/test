@@ -16,15 +16,15 @@ jobs:
         config: [EN, JP]
     outputs:
       should_skip: ${{ steps.check.outputs.should_skip }}
-      skip_translate: ${{ steps.check.outputs.skip_translate }}
+      force_build_so: ${{ steps.check.outputs.force_build_so }}
     steps:
       - id: check
         run: |
           if [ "${{ github.event_name }}" != "workflow_dispatch" ]; then
-            echo "skip_translate=false" >> $GITHUB_OUTPUT
+            echo "force_build_so=false" >> $GITHUB_OUTPUT
             echo "should_skip=false" >> $GITHUB_OUTPUT
           else
-            echo "skip_translate=${{ github.event.inputs.force_build_so }}" >> $GITHUB_OUTPUT
+            echo "force_build_so=${{ github.event.inputs.force_build_so }}" >> $GITHUB_OUTPUT
             echo "should_skip=false" >> $GITHUB_OUTPUT
           fi
 
@@ -105,13 +105,14 @@ jobs:
             echo "sleep..."
             sleep 3
           fi
-      - name: Trigger JP Workflow
+      - name: Trigger  Workflow
+        if: ${{steps.check_changes.outputs.any_translate_changed=='true'||needs.pre_check.outputs.force_build_so=='true'}}
         uses: actions/github-script@v6
         with:
           script: |
             await github.rest.repos.createDispatchEvent({
               owner: context.repo.owner,
               repo: context.repo.repo,
-              event_type: 'trigger_jp'  // 确保与JP工作流中定义的类型一致
+              event_type: ${{ matrix.config }}
             })
           github-token: ${{ secrets.GITHUB_TOKEN }}

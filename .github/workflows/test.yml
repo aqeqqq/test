@@ -1,7 +1,7 @@
-name: JP
+name: trigger_jp
 on:
   repository_dispatch:
-    types: [trigger_jp]  # 自定义事件类型
+    types: [JP]  # 自定义事件类型
 jobs:
   job1:
     runs-on: ubuntu-latest
