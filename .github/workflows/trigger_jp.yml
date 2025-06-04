@@ -1,7 +1,7 @@
 name: trigger_jp
 on:
   repository_dispatch:
-    types: [JP]  # 自定义事件类型
+    types: [JP]
 jobs:
   build_so:
     runs-on: ubuntu-latest
@@ -16,7 +16,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: ${{ secrets.MAIN }}
-          ref: 'JP'
+          ref: '${{ github.event.action }}'
           submodules: recursive
           path: Main
           ssh-key: ${{ secrets.SSH_KEY }}
@@ -37,8 +37,8 @@ jobs:
         run: |
           cp -r Main/Output/*.cpp AzurLane/app/src/main/cpp/azur/src
           cp -r Main/Output/*.h   AzurLane/app/src/main/cpp/azur/src
-          export MODULE_NAME="OceanJP"
-          echo "MODULE_NAME=OceanJP" >> $GITHUB_ENV
+          export MODULE_NAME="Ocean${{ github.event.action }}"
+          echo "MODULE_NAME=Ocean${{ github.event.action }}" >> $GITHUB_ENV
 
       - uses: actions/setup-java@v4.7.1
         with:
@@ -100,8 +100,8 @@ jobs:
           git commit -m "Update ${{ matrix.triplet }} libraries "
           git reset --hard
           git clean -df
-          git pull --rebase origin JP
-          if git push origin JP; then
+          git pull --rebase origin ${{ github.event.action }}
+          if git push origin ${{ github.event.action }}; then
             echo "Push successful"
             echo "any_so_changed=true" >> $GITHUB_OUTPUT
             exit 0
@@ -121,7 +121,7 @@ jobs:
         with:
           path: Main
           repository: ${{ secrets.MAIN }}
-          ref: 'JP'
+          ref: '${{ github.event.action }}'
           ssh-key: ${{ secrets.SSH_KEY }}
           sparse-checkout: |
             lib
@@ -132,7 +132,7 @@ jobs:
           repository: ${{ secrets.APK }}
           ssh-key: ${{ secrets.SSH_KEY }}
           path: AzurLaneApk
-          ref: JP
+          ref: '${{ github.event.action }}'
       - name: Build APK
         run: |
           cp -r ../Main/lib/. libs/
@@ -155,16 +155,20 @@ jobs:
 
       - name: Get current date
         id: date
-        run: echo "::set-output name=date::$(date +'%Y-%m-%d')"
+        run: echo "date=$(date +'%Y_%m%d')" >> $GITHUB_OUTPUT
 
       - name: Setup Rclone
         uses: AnimMouse/setup-rclone@main
         with:
           token: ${{ secrets.GH_PAT }}
           rclone_config: ${{ secrets.RCLONE_CONFIG }}
+      - name: Clean old files
+        run: |
+            rclone delete mega:/ --include "com.YoStar${{ github.event.action }}.AzurLane*.xapk" --ignore-errors
+            rclone delete mega:/ --include "com.YoStar${{ github.event.action }}.AzurLane*.apk" --ignore-errors
       - run: |
-          rclone copy AzurLaneApk/build/com.YoStarJP.AzurLane.xapk mega:/
-          rclone copy AzurLaneApk/build/com.YoStarJP.AzurLane.patched.apk mega:/
+          rclone copyto AzurLaneApk/build/com.YoStar${{ github.event.action }}.AzurLane.xapk mega:/com.YoStar${{ github.event.action }}.AzurLane_${{steps.date.outputs.date}}.xapk
+          rclone copyto AzurLaneApk/build/com.YoStar${{ github.event.action }}.AzurLane.patched.apk mega:/com.YoStar${{ github.event.action }}.AzurLane_${{steps.date.outputs.date}}.apk
       - name: Update Rclone config
         uses: AnimMouse/setup-rclone/update-config@main
         with:
@@ -173,12 +177,12 @@ jobs:
       - name: Create Release
         uses: ncipollo/release-action@v1.12.0
         with:
-          name: ${{ steps.date.outputs.date }}_JP
+          name: ${{ steps.date.outputs.date }}_${{ github.event.action }}
           allowUpdates: true
           artifactErrorsFailBuild: true
-          artifacts: AzurLaneApk/build/com.YoStarJP.AzurLane.xapk,AzurLaneApk/build/com.YoStarJP.AzurLane.patched.apk
+          artifacts: AzurLaneApk/build/com.YoStar${{ github.event.action }}.AzurLane.xapk,AzurLaneApk/build/com.YoStar${{ github.event.action }}.AzurLane.patched.apk
           draft: true
           #           commit: "latest"
           makeLatest: false
-          tag: "testJP"
+          tag: "test${{ github.event.action }}"
           omitBody: true
