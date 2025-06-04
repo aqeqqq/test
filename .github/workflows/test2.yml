@@ -1,9 +1,0 @@
-name: trigger_en
-on:
-  repository_dispatch:
-    types: [EN]  # 自定义事件类型
-jobs:
-  job1:
-    runs-on: ubuntu-latest
-    steps:
-      - run: echo "EN 工作流被触发"

@@ -1,0 +1,171 @@
+name: trigger_jp
+on:
+  repository_dispatch:
+    types: [JP]  # 自定义事件类型
+jobs:
+  build_so:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        triplet: [arm64-v8a,armeabi-v7a]
+    env:
+      VCPKG_BINARY_SOURCES: clear;files,${{ github.workspace }}/AzurLane/build/${{ matrix.triplet }}/vcpkg_installed,readwrite
+    steps:
+
+      - name: checkout main
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ secrets.MAIN }}
+          ref: 'JP'
+          submodules: recursive
+          path: Main
+          ssh-key: ${{ secrets.SSH_KEY }}
+      - name: checkout Zygisk
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ secrets.ZYGISK }}
+          ref: Ocean
+          path: AzurLane
+          ssh-key: ${{ secrets.SSH_KEY }}
+      - name: ccache
+        uses: hendrikmuhs/ccache-action@main
+        with:
+          key: ${{ github.job }}-${{ matrix.triplet }}
+
+      - name: Move files
+        # if: steps.check_changes_1.outputs.has_changes == 'true'
+        run: |
+          cp -r Main/Output/*.cpp AzurLane/app/src/main/cpp/azur/src
+          cp -r Main/Output/*.h   AzurLane/app/src/main/cpp/azur/src
+          export MODULE_NAME="OceanJP"
+          echo "MODULE_NAME=OceanJP" >> $GITHUB_ENV
+
+      - uses: actions/setup-java@v4.7.1
+        with:
+          distribution: temurin
+          java-version: 17
+          # cache: gradle
+      - uses: lukka/get-cmake@latest
+
+      - name: Restore vcpkg cache
+        uses: actions/cache/restore@main
+        with:
+          path: ${{ github.workspace }}/AzurLane/build/${{ matrix.triplet }}/vcpkg_installed
+          key: vcpkg-${{ matrix.triplet }}-${{ hashFiles('AzurLane/app/src/main/cpp/vcpkg.json') }}
+          restore-keys: vcpkg-${{ matrix.triplet }}-
+
+      - uses: lukka/run-vcpkg@v11
+        id: runvcpkg
+        with:
+          vcpkgJsonGlob: 'AzurLane/app/src/main/cpp/vcpkg.json'
+          doNotCache: true
+
+      - name: Prints output of run-vcpkg's action.
+        run: echo "root='${{ steps.runvcpkg.outputs.RUNVCPKG_VCPKG_ROOT_OUT }}', triplet='${{ steps.runvcpkg.outputs.RUNVCPKG_VCPKG_DEFAULT_TRIPLET_OUT }}' "
+
+
+      - name: Run CMake and run vcpkg to build packages
+        uses: lukka/run-cmake@v10
+        id: runcmake
+        with:
+          cmakeListsTxtPath: 'AzurLane/app/src/main/cpp/CMakeLists.txt'
+          configurePreset: ${{ matrix.triplet }}
+          buildPreset: ${{ matrix.triplet }}
+          configurePresetAdditionalArgs: "['-DCMAKE_C_COMPILER_LAUNCHER=ccache','-DCMAKE_CXX_COMPILER_LAUNCHER=ccache']"
+
+      - name: Save vcpkg cache
+        uses: actions/cache/save@main
+        with:
+          path: ${{ github.workspace }}/AzurLane/build/${{ matrix.triplet }}/vcpkg_installed
+          key: vcpkg-${{ matrix.triplet }}-${{ hashFiles('AzurLane/app/src/main/cpp/vcpkg.json') }}
+
+      - name: Commit files
+        id: check_so_changed
+        working-directory: Main
+        run: |
+          rm -f lib/${{ matrix.triplet }}/*
+          cp ../AzurLane/build/${{ matrix.triplet }}/lib$MODULE_NAME.so  lib/${{ matrix.triplet }}
+          set -e
+
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git config user.name "github-actions[bot]"
+
+          if [[ -z $(git status --porcelain lib) ]]; then
+            echo "No changes to commit"
+            echo "::set-output name=changed_so::false"
+            exit 0
+          fi
+          ls
+          git add lib
+          git commit -m "Update ${{ matrix.triplet }} libraries "
+          git reset --hard
+          git clean -df
+          git pull --rebase origin JP
+          if git push origin JP; then
+            echo "Push successful"
+            echo "any_so_changed=true" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+
+  build_apk:
+    needs: build_so
+    runs-on: ubuntu-latest
+    steps:
+      - name: Wait after push
+        run: |
+          echo "sleep..."
+          sleep 10
+      - name: checkout lib
+        uses: actions/checkout@v4
+        with:
+          path: Main
+          repository: ${{ secrets.MAIN }}
+          ref: 'JP'
+          ssh-key: ${{ secrets.SSH_KEY }}
+          sparse-checkout: |
+            lib
+
+      - name: checkout Apk
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ secrets.APK }}
+          ssh-key: ${{ secrets.SSH_KEY }}
+          path: AzurLaneApk
+          ref: JP
+      - name: Build APK
+        run: |
+          cp -r ../Main/lib/. libs/
+          chmod +x patch_perseus.sh
+          ./patch_perseus.sh
+        working-directory: AzurLaneApk
+      - name: Setup Android SDK Tools
+        uses: android-actions/setup-android@v3.2.1
+        with:
+          packages: 'platform-tools platforms;android-34 build-tools;34.0.0'
+      - name: Output build-tools path and add to PATH
+        run: |
+          ls -la ${ANDROID_SDK_ROOT}/build-tools/34.0.0
+          echo "${ANDROID_SDK_ROOT}/build-tools/34.0.0" >> $GITHUB_PATH
+      - name: Zipalign and Sign Android release
+        run: |
+          chmod +x zipalign_sign.sh
+          ./zipalign_sign.sh
+        working-directory: AzurLaneApk
+
+      - name: Get current date
+        id: date
+        run: echo "::set-output name=date::$(date +'%Y-%m-%d')"
+
+      - name: Create Release
+        uses: ncipollo/release-action@v1.12.0
+        with:
+          name: ${{ steps.date.outputs.date }}_JP
+          allowUpdates: true
+          artifactErrorsFailBuild: true
+          artifacts: AzurLaneApk/build/com.YoStarJP.AzurLane.xapk,AzurLaneApk/build/com.YoStarJP.AzurLane.patched.apk
+          draft: true
+          #           commit: "latest"
+          makeLatest: false
+          tag: "testJP"
+          omitBody: true
