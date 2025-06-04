@@ -110,8 +110,8 @@ jobs:
         with:
           script: |
             await github.rest.repos.createDispatchEvent({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
+              owner: aqeqqq,
+              repo: test,
               event_type: 'trigger_jp',  # 与JP中定义的类型匹配
             })
   
