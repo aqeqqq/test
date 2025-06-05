@@ -82,7 +82,13 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         if: steps.vcpkgcache.outputs.cache-hit
         run: gh cache delete --repo ${{ github.repository }} vcpkg-${{ github.event.action }}-${{ matrix.triplet }}-${{ hashFiles('AzurLane/app/src/main/cpp/vcpkg.json') }}
-  
+
+      - name: Delete old ccache
+        env:
+          GH_TOKEN: ${{ github.token }}
+        if: steps.ccache.outputs.cache-hit
+        run: gh cache delete --repo ${{ github.repository }} ${{ github.event.action }}-${{ github.job }}-${{ matrix.triplet }}
+
       - name: Save vcpkg cache
         uses: actions/cache/save@main
         with:
