@@ -24,28 +24,28 @@ jobs:
             echo "force_build_so=${{ github.event.inputs.force_build_so }}" >> $GITHUB_OUTPUT
             echo "should_skip=false" >> $GITHUB_OUTPUT
           fi
-      - name: Delete all caches for a specific branch
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          # 设置要删除缓存的目标分支名称
-          TARGET_BRANCH="EN"  # 替换为实际分支名
+      # - name: Delete all caches for a specific branch
+      #   env:
+      #     GH_TOKEN: ${{ github.token }}
+      #   run: |
+      #     # 设置要删除缓存的目标分支名称
+      #     TARGET_BRANCH="EN"  # 替换为实际分支名
           
-          # 将分支名转换为 ref 格式 (refs/heads/<branch>)
-          BRANCH_REF="refs/heads/$TARGET_BRANCH"
+      #     # 将分支名转换为 ref 格式 (refs/heads/<branch>)
+      #     BRANCH_REF="refs/heads/$TARGET_BRANCH"
           
-          echo "Deleting all caches for branch: $TARGET_BRANCH (ref: $BRANCH_REF)"
+      #     echo "Deleting all caches for branch: $TARGET_BRANCH (ref: $BRANCH_REF)"
           
-          # 获取指定分支的所有缓存ID
-          CACHE_IDS=$(gh cache list --repo ${{ github.repository }} --ref "$BRANCH_REF" --limit 1000 --json id -q '.[].id')
+      #     # 获取指定分支的所有缓存ID
+      #     CACHE_IDS=$(gh cache list --repo ${{ github.repository }} --ref "$BRANCH_REF" --limit 1000 --json id -q '.[].id')
           
-          # 循环删除所有找到的缓存
-          for id in $CACHE_IDS; do
-            echo "Deleting cache ID: $id"
-            gh cache delete --repo ${{ github.repository }} $id
-          done
+      #     # 循环删除所有找到的缓存
+      #     for id in $CACHE_IDS; do
+      #       echo "Deleting cache ID: $id"
+      #       gh cache delete --repo ${{ github.repository }} $id
+      #     done
           
-          echo "Deleted ${#CACHE_IDS[@]} caches for branch: $TARGET_BRANCH"
+      #     echo "Deleted ${#CACHE_IDS[@]} caches for branch: $TARGET_BRANCH"
         
   skip:
     needs: pre_check

@@ -1,7 +1,7 @@
-name: trigger_jp
+name: build_apk
 on:
   repository_dispatch:
-    types: [JP]
+    types: [JP,EN]
 jobs:
   build_so:
     runs-on: ubuntu-latest
