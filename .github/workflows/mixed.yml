@@ -24,9 +24,27 @@ jobs:
             echo "force_build_so=${{ github.event.inputs.force_build_so }}" >> $GITHUB_OUTPUT
             echo "should_skip=false" >> $GITHUB_OUTPUT
           fi
-
+  skip:
+    needs: pre_check
+    if: ${{needs.pre_check.outputs.force_build_so=='true'}}
+    strategy:
+      matrix:
+        config: [EN, JP]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger  Workflow
+        uses: actions/github-script@main
+        with:
+          script: |
+            await github.rest.repos.createDispatchEvent({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              event_type: '${{ matrix.config }}'
+            })
+          github-token: ${{ secrets.GITHUB_TOKEN }}
   update_h:
     needs: pre_check
+    if: ${{needs.pre_check.outputs.force_build_so!='true'}}
     strategy:
       matrix:
         config: [EN, JP]
@@ -103,7 +121,7 @@ jobs:
             sleep 3
           fi
       - name: Trigger  Workflow
-        if: ${{steps.check_changes.outputs.any_translate_changed=='true'||needs.pre_check.outputs.force_build_so=='true'}}
+        if: ${{steps.check_changes.outputs.any_translate_changed=='true'}}
         uses: actions/github-script@main
         with:
           script: |
