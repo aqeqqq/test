@@ -28,9 +28,12 @@ jobs:
           path: AzurLane
           ssh-key: ${{ secrets.SSH_KEY }}
       - name: ccache
+        id: ccache
         uses: hendrikmuhs/ccache-action@main
         with:
           key: ${{ github.event.action }}-${{ github.job }}-${{ matrix.triplet }}
+          evict-old-files: 'job'
+          append-timestamp: false
 
       - name: Move files
         # if: steps.check_changes_1.outputs.has_changes == 'true'
@@ -48,6 +51,7 @@ jobs:
       - uses: lukka/get-cmake@latest
 
       - name: Restore vcpkg cache
+        id: vcpkgcache
         uses: actions/cache/restore@main
         with:
           path: ${{ github.workspace }}/AzurLane/build/${{ matrix.triplet }}/vcpkg_installed
@@ -73,6 +77,12 @@ jobs:
           buildPreset: ${{ matrix.triplet }}
           configurePresetAdditionalArgs: "['-DCMAKE_C_COMPILER_LAUNCHER=ccache','-DCMAKE_CXX_COMPILER_LAUNCHER=ccache']"
 
+      - name: Delete old vcpkgcache
+        env:
+          GH_TOKEN: ${{ github.token }}
+        if: steps.vcpkgcache.outputs.cache-hit
+        run: gh cache delete --repo ${{ github.repository }} vcpkg-${{ github.event.action }}-${{ matrix.triplet }}-${{ hashFiles('AzurLane/app/src/main/cpp/vcpkg.json') }}
+  
       - name: Save vcpkg cache
         uses: actions/cache/save@main
         with:
