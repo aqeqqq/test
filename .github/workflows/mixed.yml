@@ -24,6 +24,19 @@ jobs:
             echo "force_build_so=${{ github.event.inputs.force_build_so }}" >> $GITHUB_OUTPUT
             echo "should_skip=false" >> $GITHUB_OUTPUT
           fi
+      - name: Delete all caches for a specific branch
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          BRANCH_NAME='EN'
+          # 使用awk，检查第4列（键）是否包含分支名称字符串
+          gh cache list --repo ${{ github.repository }} --limit 1000 |
+          awk -v branch="$BRANCH_NAME" '$4 ~ branch {print $1}' |
+          while read -r id; do
+            echo "Deleting cache for branch '$BRANCH_NAME': $id"
+            gh cache delete --repo ${{ github.repository }} $id
+          done
+        
   skip:
     needs: pre_check
     if: ${{needs.pre_check.outputs.force_build_so=='true'}}
