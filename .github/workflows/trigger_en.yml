@@ -35,6 +35,7 @@ jobs:
           evict-old-files: 'job'
           append-timestamp: false
 
+
       - name: Move files
         # if: steps.check_changes_1.outputs.has_changes == 'true'
         run: |
@@ -76,17 +77,17 @@ jobs:
           configurePreset: ${{ matrix.triplet }}
           buildPreset: ${{ matrix.triplet }}
           configurePresetAdditionalArgs: "['-DCMAKE_C_COMPILER_LAUNCHER=ccache','-DCMAKE_CXX_COMPILER_LAUNCHER=ccache']"
-
+      - name: Delete old ccache
+        if: steps.ccache.outputs.cache-hit=='true'||steps.ccache.outputs.cache-hit
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh cache delete --repo ${{ github.repository }} ccache-${{ github.event.action }}-${{ github.job }}-${{ matrix.triplet }}
+  
       - name: Delete old vcpkgcache
         env:
           GH_TOKEN: ${{ github.token }}
         if: steps.vcpkgcache.outputs.cache-hit
         run: gh cache delete --repo ${{ github.repository }} vcpkg-${{ github.event.action }}-${{ matrix.triplet }}-${{ hashFiles('AzurLane/app/src/main/cpp/vcpkg.json') }}
-
-      - name: Delete old ccache
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: gh cache delete --repo ${{ github.repository }} ccache-${{ github.event.action }}-${{ github.job }}-${{ matrix.triplet }}
 
       - name: Save vcpkg cache
         uses: actions/cache/save@main
