@@ -35,7 +35,6 @@ jobs:
           evict-old-files: 'job'
           append-timestamp: false
 
-
       - name: Move files
         # if: steps.check_changes_1.outputs.has_changes == 'true'
         run: |
@@ -78,11 +77,14 @@ jobs:
           buildPreset: ${{ matrix.triplet }}
           configurePresetAdditionalArgs: "['-DCMAKE_C_COMPILER_LAUNCHER=ccache','-DCMAKE_CXX_COMPILER_LAUNCHER=ccache']"
       - name: Delete old ccache
-        if: steps.ccache.outputs.cache-hit=='true'||steps.ccache.outputs.cache-hit
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh cache delete --repo ${{ github.repository }} ccache-${{ github.event.action }}-${{ github.job }}-${{ matrix.triplet }}
-  
+        run: |
+          CACHE_KEY="ccache-${{ github.event.action }}-${{ github.job }}-${{ matrix.triplet }}"
+          gh cache list --repo ${{ github.repository }} --limit 1000 | grep "$CACHE_KEY" | awk '{print $1}' | while read -r id; do
+            echo "Deleting old cache: $id"
+            gh cache delete --repo ${{ github.repository }} $id
+          done
       - name: Delete old vcpkgcache
         env:
           GH_TOKEN: ${{ github.token }}
