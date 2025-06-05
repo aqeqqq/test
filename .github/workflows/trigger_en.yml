@@ -86,7 +86,6 @@ jobs:
       - name: Delete old ccache
         env:
           GH_TOKEN: ${{ github.token }}
-        if: steps.ccache.outputs.cache-hit
         run: gh cache delete --repo ${{ github.repository }} ${{ github.event.action }}-${{ github.job }}-${{ matrix.triplet }}
 
       - name: Save vcpkg cache
