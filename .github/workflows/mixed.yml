@@ -11,9 +11,6 @@ on:
 jobs:
   pre_check:
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        config: [EN, JP]
     outputs:
       should_skip: ${{ steps.check.outputs.should_skip }}
       force_build_so: ${{ steps.check.outputs.force_build_so }}
