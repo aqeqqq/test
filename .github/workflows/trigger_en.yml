@@ -112,10 +112,6 @@ jobs:
     needs: build_so
     runs-on: ubuntu-latest
     steps:
-      - name: Wait after push
-        run: |
-          echo "sleep..."
-          sleep 10
       - name: checkout lib
         uses: actions/checkout@v4
         with:
@@ -133,12 +129,17 @@ jobs:
           ssh-key: ${{ secrets.SSH_KEY }}
           path: AzurLaneApk
           ref: '${{ github.event.action }}'
-      - name: Build APK
-        run: |
-          cp -r ../Main/lib/. libs/
-          chmod +x patch_perseus.sh
-          ./patch_perseus.sh
-        working-directory: AzurLaneApk
+
+
+      - name: Restore apk_build cache
+        id: cache
+        uses: actions/cache/restore@main
+        with:
+          path: ${{ github.workspace }}/AzurLaneApk/apk_build
+          key: vcpkg-${{ github.event.action }}-apk_build
+          restore-keys: vcpkg-${{ github.event.action }}-apk_build
+
+
       - name: Setup Android SDK Tools
         uses: android-actions/setup-android@v3.2.1
         with:
@@ -147,11 +148,31 @@ jobs:
         run: |
           ls -la ${ANDROID_SDK_ROOT}/build-tools/34.0.0
           echo "${ANDROID_SDK_ROOT}/build-tools/34.0.0" >> $GITHUB_PATH
-      - name: Zipalign and Sign Android release
+
+
+      - name: Setup Python
+        uses: actions/setup-python@v5.6.0
+        with:
+          cache: pip
+
+      - name: Build APK
         run: |
-          chmod +x zipalign_sign.sh
-          ./zipalign_sign.sh
+          cp -r ../Main/lib/. libs/
+          python3 main.py
         working-directory: AzurLaneApk
+
+
+      - name: Delete old cache
+        env:
+          GH_TOKEN: ${{ github.token }}
+        if: steps.cache.outputs.cache-hit
+        run: gh cache delete --repo ${{ github.repository }} vcpkg-${{ github.event.action }}-apk_build
+      - name: Save apk_build cache
+        uses: actions/cache/save@main
+        with:
+          path: ${{ github.workspace }}/AzurLaneApk/apk_build
+          key: vcpkg-${{ github.event.action }}-apk_build
+
 
       - name: Get current date
         id: date
@@ -167,20 +188,22 @@ jobs:
             rclone delete mega:/ --include "com.YoStar${{ github.event.action }}.AzurLane*.xapk" --ignore-errors
             rclone delete mega:/ --include "com.YoStar${{ github.event.action }}.AzurLane*.apk" --ignore-errors
       - run: |
-          rclone copyto AzurLaneApk/build/com.YoStar${{ github.event.action }}.AzurLane.xapk mega:/com.YoStar${{ github.event.action }}.AzurLane_${{steps.date.outputs.date}}.xapk
-          rclone copyto AzurLaneApk/build/com.YoStar${{ github.event.action }}.AzurLane.patched.apk mega:/com.YoStar${{ github.event.action }}.AzurLane_${{steps.date.outputs.date}}.apk
+          rclone copyto AzurLaneApk/com.YoStar${{ github.event.action }}.AzurLane.xapk mega:/com.YoStar${{ github.event.action }}.AzurLane_${{steps.date.outputs.date}}.xapk
+          rclone copyto AzurLaneApk/com.YoStar${{ github.event.action }}.AzurLane.apk mega:/com.YoStar${{ github.event.action }}.AzurLane_${{steps.date.outputs.date}}.apk
       - name: Update Rclone config
         uses: AnimMouse/setup-rclone/update-config@main
         with:
             rclone_config_secret_name: RCLONE_CONFIG
             token: ${{ secrets.GH_PAT }}        
+
+
       - name: Create Release
         uses: ncipollo/release-action@v1.12.0
         with:
           name: ${{ steps.date.outputs.date }}_${{ github.event.action }}
           allowUpdates: true
           artifactErrorsFailBuild: true
-          artifacts: AzurLaneApk/build/com.YoStar${{ github.event.action }}.AzurLane.xapk,AzurLaneApk/build/com.YoStar${{ github.event.action }}.AzurLane.patched.apk
+          artifacts: AzurLaneApk/com.YoStar${{ github.event.action }}.AzurLane.xapk,AzurLaneApk/com.YoStar${{ github.event.action }}.AzurLane.apk
           draft: true
           #           commit: "latest"
           makeLatest: false
