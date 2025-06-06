@@ -85,11 +85,11 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: ${{ secrets.MAIN }}
-          ref: ${{ matrix.config }}
+          ref: main
           ssh-key: ${{ secrets.SSH_KEY }}
           path: Main
           sparse-checkout: |
-            Output
+            Output${{ matrix.config }}
             python
 
       - name: Checkout AzurLaneLuaScripts
