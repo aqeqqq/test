@@ -1,0 +1,151 @@
+name: Merged Build
+on:
+  push:
+  workflow_dispatch:
+    inputs:
+      force_build_so:
+        description: 'Force build so without changes'
+        type: string
+        default: "true"
+
+jobs:
+  pre_check:
+    runs-on: ubuntu-latest
+    outputs:
+      should_skip: ${{ steps.check.outputs.should_skip }}
+      force_build_so: ${{ steps.check.outputs.force_build_so }}
+    steps:
+      - id: check
+        run: |
+          if [ "${{ github.event_name }}" != "workflow_dispatch" ]; then
+            echo "force_build_so=false" >> $GITHUB_OUTPUT
+            echo "should_skip=false" >> $GITHUB_OUTPUT
+          else
+            echo "force_build_so=${{ github.event.inputs.force_build_so }}" >> $GITHUB_OUTPUT
+            echo "should_skip=false" >> $GITHUB_OUTPUT
+          fi
+      # - name: Delete all caches for a specific branch
+      #   env:
+      #     GH_TOKEN: ${{ github.token }}
+      #   run: |
+      #     # 设置要删除缓存的目标分支名称
+      #     TARGET_BRANCH="EN"  # 替换为实际分支名
+          
+      #     # 将分支名转换为 ref 格式 (refs/heads/<branch>)
+      #     BRANCH_REF="refs/heads/$TARGET_BRANCH"
+          
+      #     echo "Deleting all caches for branch: $TARGET_BRANCH (ref: $BRANCH_REF)"
+          
+      #     # 获取指定分支的所有缓存ID
+      #     CACHE_IDS=$(gh cache list --repo ${{ github.repository }} --ref "$BRANCH_REF" --limit 1000 --json id -q '.[].id')
+          
+      #     # 循环删除所有找到的缓存
+      #     for id in $CACHE_IDS; do
+      #       echo "Deleting cache ID: $id"
+      #       gh cache delete --repo ${{ github.repository }} $id
+      #     done
+          
+      #     echo "Deleted ${#CACHE_IDS[@]} caches for branch: $TARGET_BRANCH"
+        
+  skip:
+    needs: pre_check
+    if: ${{needs.pre_check.outputs.force_build_so=='true'}}
+    strategy:
+      matrix:
+        config: [KR]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger  Workflow
+        uses: actions/github-script@main
+        with:
+          script: |
+            await github.rest.repos.createDispatchEvent({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              event_type: '${{ matrix.config }}'
+            })
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+  update_h:
+    needs: pre_check
+    if: ${{needs.pre_check.outputs.force_build_so!='true'}}
+    strategy:
+      matrix:
+        config: [KR]
+    outputs:
+      any_translate_changed: ${{ steps.check_changes.outputs.any_translate_changed }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: szenius/set-timezone@v2.0
+        with:
+          timezoneLinux: "Asia/Singapore"
+          timezoneMacos: "Asia/Singapore"
+          timezoneWindows: "Singapore Standard Time"
+      
+      - name: Checkout Main
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ secrets.MAIN }}
+          ref: ${{ matrix.config }}
+          ssh-key: ${{ secrets.SSH_KEY }}
+          path: Main
+          sparse-checkout: |
+            Output
+            python
+
+      - name: Checkout AzurLaneLuaScripts
+        uses: actions/checkout@v4
+        with:
+          repository: AzurLaneTools/AzurLaneLuaScripts
+          path: AzurLaneLuaScripts
+          ref: main
+          sparse-checkout: |
+            CN/gamecfg/story/
+            CN/sharecfg/
+            CN/sharecfg/ship_skin_template_sublist/
+            CN/sharecfg/enemy_data_statistics_sublist/
+            CN/sharecfgdata/
+            ${{ matrix.config }}/gamecfg/story${{ matrix.config == 'JP' && 'jp' || '' }}/
+            ${{ matrix.config }}/sharecfg/
+            ${{ matrix.config }}/sharecfgdata/
+
+      - name: Setup Python
+        uses: actions/setup-python@v5.6.0
+        with:
+          python-version: '3.10'
+
+      - name: Install Python dependencies
+        run: |
+          rm -f ../Output${{matrix.config}}/*
+          pip install lupa
+          python3 tranlator.py  --lang ${{matrix.config}}
+          python3 story.py      --lang ${{matrix.config}}
+        working-directory: Main/python
+
+      - name: Commit files
+        id: check_changes
+        working-directory: Main
+        run: |
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git config user.name "github-actions[bot]"
+          if [[ `git status --porcelain Output${{matrix.config}}` ]]; then
+            git add Output${{matrix.config}}
+            git commit -m "Changes *.h for ${{ matrix.config }}"
+            git push
+            echo "any_translate_changed=true" >> $GITHUB_OUTPUT
+          else
+            echo "No changes to commit"
+            echo "any_translate_changed=false" >> $GITHUB_OUTPUT
+          fi
+          echo "sleep..."
+          sleep 3
+      - name: Trigger  Workflow
+        if: ${{steps.check_changes.outputs.any_translate_changed=='true'}}
+        uses: actions/github-script@main
+        with:
+          script: |
+            await github.rest.repos.createDispatchEvent({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              event_type: '${{ matrix.config }}'
+            })
+          github-token: ${{ secrets.GITHUB_TOKEN }}

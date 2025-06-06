@@ -1,7 +1,7 @@
 name: build_apk
 on:
   repository_dispatch:
-    types: [JP,EN]
+    types: [JP,EN,KR]
 jobs:
   build_so:
     runs-on: ubuntu-latest
@@ -38,8 +38,8 @@ jobs:
       - name: Move files
         # if: steps.check_changes_1.outputs.has_changes == 'true'
         run: |
-          cp -r Main/Output/*.cpp AzurLane/app/src/main/cpp/azur/src
-          cp -r Main/Output/*.h   AzurLane/app/src/main/cpp/azur/src
+          cp -r Main/Output${{github.event.action}}/*.cpp AzurLane/app/src/main/cpp/azur/src
+          cp -r Main/Output${{github.event.action}}/*.h   AzurLane/app/src/main/cpp/azur/src
           export MODULE_NAME="Ocean${{ github.event.action }}"
           echo "MODULE_NAME=Ocean${{ github.event.action }}" >> $GITHUB_ENV
 
@@ -102,7 +102,7 @@ jobs:
         working-directory: Main
         run: |
           rm -f lib/${{ matrix.triplet }}/*
-          cp ../AzurLane/build/${{ matrix.triplet }}/lib$MODULE_NAME.so  lib/${{ matrix.triplet }}
+          cp ../AzurLane/build/${{ matrix.triplet }}/lib$MODULE_NAME.so  lib${{ github.event.action }}/${{ matrix.triplet }}
           set -e
 
           git config user.email "github-actions[bot]@users.noreply.github.com"
@@ -138,7 +138,7 @@ jobs:
           ref: '${{ github.event.action }}'
           ssh-key: ${{ secrets.SSH_KEY }}
           sparse-checkout: |
-            lib
+            lib${{ github.event.action }}
 
       - name: checkout Apk
         uses: actions/checkout@v4
@@ -146,7 +146,7 @@ jobs:
           repository: ${{ secrets.APK }}
           ssh-key: ${{ secrets.SSH_KEY }}
           path: AzurLaneApk
-          ref: '${{ github.event.action }}'
+          ref: 'main'
 
 
       - name: Restore apk_build cache
@@ -175,8 +175,8 @@ jobs:
 
       - name: Build APK
         run: |
-          cp -r ../Main/lib/. libs/
-          python3 main.py
+          cp -r ../Main/lib${{ github.event.action }}/. libs/
+          python3 main.py --lang ${{ github.event.action }}
         working-directory: AzurLaneApk
 
 
