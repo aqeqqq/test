@@ -55,8 +55,8 @@ jobs:
         uses: actions/cache/restore@main
         with:
           path: ${{ github.workspace }}/AzurLane/build/${{ matrix.triplet }}/vcpkg_installed
-          key: vcpkg-EN-${{ matrix.triplet }}-${{ hashFiles('AzurLane/app/src/main/cpp/vcpkg.json') }}
-          restore-keys: vcpkg-EN-${{ matrix.triplet }}-${{ hashFiles('AzurLane/app/src/main/cpp/vcpkg.json') }}
+          key: vcpkg-${{ matrix.triplet }}-${{ hashFiles('AzurLane/app/src/main/cpp/vcpkg.json') }}
+          restore-keys: vcpkg-${{ matrix.triplet }}-${{ hashFiles('AzurLane/app/src/main/cpp/vcpkg.json') }}
 
       - uses: lukka/run-vcpkg@v11
         id: runvcpkg
@@ -89,7 +89,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         if: steps.vcpkgcache.outputs.cache-hit
-        run: gh cache delete --repo ${{ github.repository }} vcpkg-${{ github.event.action }}-${{ matrix.triplet }}-${{ hashFiles('AzurLane/app/src/main/cpp/vcpkg.json') }}
+        run: gh cache delete --repo ${{ github.repository }} vcpkg-${{ matrix.triplet }}-${{ hashFiles('AzurLane/app/src/main/cpp/vcpkg.json') }}
 
       - name: Save vcpkg cache
         uses: actions/cache/save@main
@@ -135,7 +135,7 @@ jobs:
         with:
           path: Main
           repository: ${{ secrets.MAIN }}
-          ref: '${{ github.event.action }}'
+          ref: main
           ssh-key: ${{ secrets.SSH_KEY }}
           sparse-checkout: |
             lib${{ github.event.action }}
