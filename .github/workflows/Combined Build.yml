@@ -126,23 +126,19 @@ jobs:
         id: check_changes
         working-directory: Main
         run: |
-          if ${{ needs.pre_check.outputs.skip_translate == 'true' }} ; then
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git config user.name "github-actions[bot]"
+          if [[ `git status --porcelain Output` ]]; then
+            git add Output
+            git commit -m "Changes *.h for ${{ matrix.config }}"
+            git push
             echo "any_translate_changed=true" >> $GITHUB_OUTPUT
           else
-            git config user.email "github-actions[bot]@users.noreply.github.com"
-            git config user.name "github-actions[bot]"
-            if [[ `git status --porcelain Output` ]]; then
-              git add Output
-              git commit -m "Changes *.h for ${{ matrix.config }}"
-              git push
-              echo "any_translate_changed=true" >> $GITHUB_OUTPUT
-            else
-              echo "No changes to commit"
-              echo "any_translate_changed=false" >> $GITHUB_OUTPUT
-            fi
-            echo "sleep..."
-            sleep 3
+            echo "No changes to commit"
+            echo "any_translate_changed=false" >> $GITHUB_OUTPUT
           fi
+          echo "sleep..."
+          sleep 3
       - name: Trigger  Workflow
         if: ${{steps.check_changes.outputs.any_translate_changed=='true'}}
         uses: actions/github-script@main
