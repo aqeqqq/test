@@ -55,8 +55,8 @@ jobs:
         uses: actions/cache/restore@main
         with:
           path: ${{ github.workspace }}/AzurLane/build/${{ matrix.triplet }}/vcpkg_installed
-          key: vcpkg-${{ github.event.action }}-${{ matrix.triplet }}-${{ hashFiles('AzurLane/app/src/main/cpp/vcpkg.json') }}
-          restore-keys: vcpkg-${{ github.event.action }}-${{ matrix.triplet }}-${{ hashFiles('AzurLane/app/src/main/cpp/vcpkg.json') }}
+          key: vcpkg-EN-${{ matrix.triplet }}-${{ hashFiles('AzurLane/app/src/main/cpp/vcpkg.json') }}
+          restore-keys: vcpkg-EN-${{ matrix.triplet }}-${{ hashFiles('AzurLane/app/src/main/cpp/vcpkg.json') }}
 
       - uses: lukka/run-vcpkg@v11
         id: runvcpkg
@@ -95,7 +95,7 @@ jobs:
         uses: actions/cache/save@main
         with:
           path: ${{ github.workspace }}/AzurLane/build/${{ matrix.triplet }}/vcpkg_installed
-          key: vcpkg-${{ github.event.action }}-${{ matrix.triplet }}-${{ hashFiles('AzurLane/app/src/main/cpp/vcpkg.json') }}
+          key: vcpkg-${{ matrix.triplet }}-${{ hashFiles('AzurLane/app/src/main/cpp/vcpkg.json') }}
 
       - name: Commit files
         id: check_so_changed
