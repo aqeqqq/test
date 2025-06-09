@@ -130,6 +130,9 @@ jobs:
           if [[ `git status --porcelain Output${{matrix.config}}` ]]; then
             git add Output${{matrix.config}}
             git commit -m "Changes *.h for ${{ matrix.config }}"
+            git reset --hard
+            git clean -df
+            git pull --rebase origin main
             git push
             echo "any_translate_changed=true" >> $GITHUB_OUTPUT
           else
