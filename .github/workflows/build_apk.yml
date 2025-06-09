@@ -117,8 +117,8 @@ jobs:
           git commit -m "Update ${{ github.event.action }} ${{ matrix.triplet }} libraries "
           git reset --hard
           git clean -df
-          git pull --rebase origin ${{ github.event.action }}
-          if git push origin ${{ github.event.action }}; then
+          git pull --rebase origin main
+          if git push origin main; then
             echo "Push successful"
             echo "any_so_changed=true" >> $GITHUB_OUTPUT
             exit 0
