@@ -201,13 +201,32 @@ jobs:
         with:
           token: ${{ secrets.GH_PAT }}
           rclone_config: ${{ secrets.RCLONE_CONFIG }}
+
       - name: Clean old files
         run: |
-            rclone delete mega:/ --include "com.YoStar${{ github.event.action }}.AzurLane*.xapk" --ignore-errors
-            rclone delete mega:/ --include "com.YoStar${{ github.event.action }}.AzurLane*.apk" --ignore-errors
-      - run: |
-          rclone copyto AzurLaneApk/com.YoStar${{ github.event.action }}.AzurLane.xapk mega:/com.YoStar${{ github.event.action }}.AzurLane_${{steps.date.outputs.date}}.xapk
-          rclone copyto AzurLaneApk/com.YoStar${{ github.event.action }}.AzurLane.apk mega:/com.YoStar${{ github.event.action }}.AzurLane_${{steps.date.outputs.date}}.apk
+          if [ "${{ github.event.action }}" = "KR" ]; then
+            PREFIX="kr.txwy.and.blhx"
+          else
+            PREFIX="com.YoStar${{ github.event.action }}.AzurLane"
+          fi
+          rclone delete mega:/ --include "${PREFIX}*.xapk" --ignore-errors
+          rclone delete mega:/ --include "${PREFIX}*.apk" --ignore-errors
+      
+      - name: Upload new files
+        run: |
+          if [ "${{ github.event.action }}" = "KR" ]; then
+            SRC_NAME="kr.txwy.and.blhx"
+            DEST_PREFIX="kr.txwy.and.blhx"
+          else
+            SRC_NAME="com.YoStar${{ github.event.action }}.AzurLane"
+            DEST_PREFIX="com.YoStar${{ github.event.action }}.AzurLane"
+          fi
+          rclone copyto "AzurLaneApk/${SRC_NAME}.xapk" "mega:/${DEST_PREFIX}_${{steps.date.outputs.date}}.xapk"
+          rclone copyto "AzurLaneApk/${SRC_NAME}.apk" "mega:/${DEST_PREFIX}_${{steps.date.outputs.date}}.apk"
+            
+            
+      
+      
       - name: Update Rclone config
         uses: AnimMouse/setup-rclone/update-config@main
         with:
@@ -221,7 +240,7 @@ jobs:
           name: ${{ steps.date.outputs.date }}_${{ github.event.action }}
           allowUpdates: true
           artifactErrorsFailBuild: true
-          artifacts: AzurLaneApk/com.YoStar${{ github.event.action }}.AzurLane.xapk,AzurLaneApk/com.YoStar${{ github.event.action }}.AzurLane.apk
+          artifacts: AzurLaneApk/*.xapk,AzurLaneApk/*.apk
           draft: true
           #           commit: "latest"
           makeLatest: false
