@@ -52,7 +52,7 @@ jobs:
     if: ${{needs.pre_check.outputs.force_build_so=='true'}}
     strategy:
       matrix:
-        config: [KR]
+        config: [KR,EN,JP]
     runs-on: ubuntu-latest
     steps:
       - name: Trigger  Workflow
@@ -70,7 +70,7 @@ jobs:
     if: ${{needs.pre_check.outputs.force_build_so!='true'}}
     strategy:
       matrix:
-        config: [KR]
+        config: [KR,EN,JP]
     outputs:
       any_translate_changed: ${{ steps.check_changes.outputs.any_translate_changed }}
     runs-on: ubuntu-latest
