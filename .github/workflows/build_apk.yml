@@ -85,11 +85,6 @@ jobs:
             echo "Deleting old cache: $id"
             gh cache delete --repo ${{ github.repository }} $id
           done
-      - name: Delete old vcpkgcache
-        env:
-          GH_TOKEN: ${{ github.token }}
-        if: steps.vcpkgcache.outputs.cache-hit
-        run: gh cache delete --repo ${{ github.repository }} vcpkg-${{ matrix.triplet }}-${{ hashFiles('AzurLane/app/src/main/cpp/vcpkg.json') }}
 
       - name: Save vcpkg cache
         uses: actions/cache/save@main
