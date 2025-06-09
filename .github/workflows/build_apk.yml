@@ -101,7 +101,7 @@ jobs:
         id: check_so_changed
         working-directory: Main
         run: |
-          rm -f lib/${{ matrix.triplet }}/*
+          rm -f lib${{ github.event.action }}/${{ matrix.triplet }}/*
           cp ../AzurLane/build/${{ matrix.triplet }}/lib$MODULE_NAME.so  lib${{ github.event.action }}/${{ matrix.triplet }}
           set -e
 
@@ -113,9 +113,8 @@ jobs:
             echo "::set-output name=changed_so::false"
             exit 0
           fi
-          ls
-          git add lib
-          git commit -m "Update ${{ matrix.triplet }} libraries "
+          git add lib${{ github.event.action }}
+          git commit -m "Update ${{ github.event.action }} ${{ matrix.triplet }} libraries "
           git reset --hard
           git clean -df
           git pull --rebase origin ${{ github.event.action }}
